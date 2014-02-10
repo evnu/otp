@@ -1320,7 +1320,10 @@ handle_keep_alive_queue(#state{status       = keep_alive,
 					     Session, <<>>,
 					     State#state{keep_alive = KeepAlive});
 			{error, Reason} ->
-			    {reply, {keep_alive_failed, Reason}, State}
+                            ClientReason = {keep_alive_failed, Reason},
+                            ClientErrMsg = httpc_response:error(NextRequest, ClientReason),
+                            NewState     = answer_request(NextRequest, ClientErrMsg, State),
+                            {stop, normal, NewState}
 		    end
 	    end
     end.
