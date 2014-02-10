@@ -99,6 +99,7 @@ only_simulated() ->
      bad_response,
      internal_server_error,
      invalid_http,
+     invalid_content_length,
      headers_dummy,
      empty_response_header,
      remote_socket_close,
@@ -685,6 +686,17 @@ invalid_http(Config) when is_list(Config) ->
 	httpc:request(get, {URL, []}, [], []),
 
     ct:print("Parse error: ~p ~n", [Reason]).
+
+%%-------------------------------------------------------------------------
+
+invalid_content_length(doc) ->
+    ["Cope with invalid content lengths"];
+invalid_content_length(Config) ->
+    URL = url(group_name(Config), "/invalid_content_length.html", Config),
+    {error, {invalid_content_length, _} = Reason} =
+	httpc:request(URL),
+
+    ct:print("Invalid content length: ~p ~n", [Reason]).
 
 %%-------------------------------------------------------------------------
 emulate_lower_versions(doc) ->
@@ -1648,6 +1660,10 @@ handle_uri(_,"/once.html",_,_,Socket,_) ->
 handle_uri(_,"/invalid_http.html",_,_,_,_) ->
     "HTTP/1.1 301\r\nDate:Sun, 09 Dec 2007 13:04:18 GMT\r\n" ++
 	"Transfer-Encoding:chunked\r\n\r\n";
+
+handle_uri(_,"/invalid_content_length.html",_,_,_,_) ->
+    "HTTP/1.1 200 ok;\r\n" ++
+	"Content-Length: invalid\r\n\r\n";
 
 handle_uri(_,"/missing_reason_phrase.html",_,_,_,_) ->
     "HTTP/1.1 200\r\n" ++

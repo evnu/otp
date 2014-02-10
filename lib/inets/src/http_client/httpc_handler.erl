@@ -1128,27 +1128,35 @@ handle_http_body(Body, #state{headers       = Headers,
 	    {stop, normal, NewState};
         _ ->
 	    ?hcrt("handle_http_body - other", []),
-            Length =
-                list_to_integer(Headers#http_response_h.'content-length'),
-            case ((Length =< MaxBodySize) orelse (MaxBodySize =:= nolimit)) of
-                true ->
-                    case httpc_response:whole_body(Body, Length) of
-                        {ok, Body} ->
-			    {NewBody, NewRequest} = 
-				stream(Body, Request, Code),
-			    handle_response(State#state{body    = NewBody,
-							request = NewRequest});
-                        MFA ->
-			    NewState = next_body_chunk(State),   
-			    {noreply, NewState#state{mfa = MFA}}
-		    end;
-                false ->
-		    NewState = 
-			answer_request(Request,
-				       httpc_response:error(Request, 
-							    body_too_big),
-				       State),
-                    {stop, normal, NewState}
+            ContentLength = Headers#http_response_h.'content-length',
+            case catch list_to_integer(ContentLength) of
+                {'EXIT', {badarg, _}} ->
+                      Error = {invalid_content_length, ContentLength},
+                      answer_request(Request,
+                                     httpc_response:error(Request, Error),
+                                     State),
+                      {stop, normal, State};
+                Length ->
+                    case ((Length =< MaxBodySize) orelse (MaxBodySize =:= nolimit)) of
+                        true ->
+                            case httpc_response:whole_body(Body, Length) of
+                                {ok, Body} ->
+                                    {NewBody, NewRequest} =
+                                        stream(Body, Request, Code),
+                                        handle_response(State#state{body    = NewBody,
+                                                                    request = NewRequest});
+                                MFA ->
+                                    NewState = next_body_chunk(State),
+                                    {noreply, NewState#state{mfa = MFA}}
+                            end;
+                        false ->
+                            NewState =
+                                answer_request(Request,
+                                               httpc_response:error(Request,
+                                                                    body_too_big),
+                                               State),
+                            {stop, normal, NewState}
+                    end
             end
     end.
 
