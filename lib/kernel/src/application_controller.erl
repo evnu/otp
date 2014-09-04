@@ -1198,20 +1198,26 @@ terminate(Reason, S) ->
 			%% Proc died before link
 			{'EXIT', Id, _} -> ok
 		    after 0 ->
-			    receive
-				{'DOWN', Ref, process, Id, _} -> ok
-			    after ShutdownTimeout ->
-				    exit(Id, kill),
-				    receive
-					{'DOWN', Ref, process, Id, _} -> ok
-				    end
-			    end
+			    wait_for_termination(Id, Ref, ShutdownTimeout)
 		    end;
 	       (_) -> ok
 	    end,
 	    S#state.running),
     true = ets:delete(ac_tab),
     ok.
+
+wait_for_termination(Id, Ref, ShutdownTimeout) ->
+    receive
+	{'DOWN', Ref, process, Id, _} -> ok;
+	{'$gen_call', From,_} ->
+	    gen_server:reply(From, {error, shutting_down}),
+	    wait_for_termination(Id, Ref, ShutdownTimeout)
+    after ShutdownTimeout ->
+	    exit(Id, kill),
+	    receive
+		{'DOWN', Ref, process, Id, _} -> ok
+	    end
+    end.
 
 -spec code_change(term(), state(), term()) -> {'ok', state()}.
 
