@@ -41,7 +41,7 @@
 
          start_trace_client/3, 
          start_trace_port/1, 
-         %% load_event_file/2, 
+         load_event_file/2, 
          save_event_file/3,
          clear_table/1,
 
